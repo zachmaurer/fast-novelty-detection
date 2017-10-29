@@ -2,6 +2,7 @@
 import os
 from os import path
 
+
 # Libs
 import cv2
 import numpy as np
@@ -17,12 +18,15 @@ import constants
 ### Model Utils ###
 ###################
 
-def loadModel(model_path, name):
+def loadModel(model_path, name, print_layers=False):
   print("\n\nLoading model: {}".format(name))
   with tf.gfile.FastGFile(model_path, 'rb') as f:
     graph_def = tf.GraphDef()
     graph_def.ParseFromString(f.read())
     tf.import_graph_def(graph_def, name=name)
+  if print_layers:
+    printModelLayers()
+
 
 def printModelLayers():
   for n in tf.get_default_graph().as_graph_def().node:
@@ -34,6 +38,16 @@ def printModelLayers():
 #####################
 ### Dataset Utils ###
 #####################
+
+def loadData(input_paths, data_type):
+    # Load data
+    if data_type == 'tfr':
+      dataset = loadTfRecordDataset(input_paths, label_fn = True)      
+    else:
+      dataset = loadJpegDataset(input_paths)
+    dataset = dataset.batch(constants.BATCH_SIZE)
+    dataset_iterator = dataset.make_one_shot_iterator()
+    return dataset_iterator
 
 def loadTfRecordDataset(image_paths, label_fn = False):
   """ Loads image dataset from a list of directories containing TFRecord files. """
