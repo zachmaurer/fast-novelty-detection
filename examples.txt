@@ -1,0 +1,7 @@
+Quick reference commands:
+
+# Extract features via Dukanet_SF from tfr-sm-test
+python extract_features.py ../models/dukanet_sf.pb tfr ../data/sm-tf-test
+
+# Extract features via Dukanet_SF from tfr-md-test
+python extract_features.py ../models/dukanet_sf.pb tfr ../data/md-tf-test

@@ -34,6 +34,19 @@ class ADModel:
   def _hypothesis(self):
     raise NotImplemented('Implement concrete subclass.')
 
+class SoftmaxThresholdAD(ADModel):
+  def __init__(self, threshold = 0.3):
+    super().__init__()
+    pass
+
+  def train(self, X, y):
+    pass
+
+  def predict(self, X):
+    pass
+
+  def _hypothesis(self, X):
+    pass
 
 class DistanceAD(ADModel):
   """ 
@@ -69,7 +82,7 @@ class DistanceAD(ADModel):
       self.distributions[c] = distribution
       self.means[c] = X_mean
 
-  def predict(self, X):
+  def predict(self, X, mode = 'all'):
     if self.distributions is None:
       raise ValueError('Must train distributions first')
     sigma_distance = np.empty((X.shape[0], 0), np.float32)
@@ -79,17 +92,18 @@ class DistanceAD(ADModel):
       mu, sigma = self.distributions[c]
       d = np.abs((dists - mu) / sigma)
       sigma_distance = np.hstack((sigma_distance, d))
-    preds = self._hypothesis(sigma_distance)
+    preds = self._hypothesis(sigma_distance, mode)
     return preds
 
-  def _hypothesis(self, X):
-    return np.all(X > self.threshold, axis = 1)
+  def _hypothesis(self, X, mode):
+    if mode == 'all':
+      return np.all(X > self.threshold, axis = 1)
+    if mode == 'average':
+      return np.all(np.mean(X, axis = 1, keepdims = True) > self.threshold, axis = 1)
 
   @staticmethod
   def distance(A, b):
     return np.sum((A - b)**2, axis = 1).flatten()**0.5
-
-
 
 
 class KMeansAD(ADModel):
