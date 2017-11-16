@@ -24,11 +24,13 @@ EXTRACT_CONFIG = {
                     ],
   'structured_test.pb' : [
       ('structured_test.pb/MobilenetV1/Logits/SpatialSqueeze:0', 100, 224)
+                    ],
+  'sf_structured_progress.pb' : [
+      ('sf_structured_progress.pb/MobilenetV1/Logits/SpatialSqueeze:0', 256, 224)
                     ]
 }
 
 # Helpers
-
 def saveFeatures(features, labels, model_path, input_path, labels_dict):
   data = ({'features' : features, 'labels' : labels}, labels_dict)
   outfile_name = "{}_{}_data.pkl".format(path.basename(model_path.strip('/')), path.basename(input_path.strip('/')))

@@ -1,6 +1,7 @@
 # Built-in
 import os
 from os import path
+import pickle
 
 # Libs
 import cv2
@@ -9,6 +10,19 @@ import tensorflow as tf
 
 # Custom
 import constants
+
+# -------------------------------------------
+
+
+#######################
+### Embedding Utils ###
+#######################
+
+def loadEmbeddings(data_path):
+  with open(data_path, 'rb') as infile:
+    data, labels = pickle.load(infile)
+  print("Loaded embeddings: {}".format(path.basename(data_path.rstrip('/'))))
+  return data, labels
 
 # -------------------------------------------
 
@@ -122,8 +136,6 @@ def openImageTf(image_path, image_size = constants.IMAGE_SIZE, **kwargs):
   image_decoded = tf.image.decode_jpeg(image_string) 
   image_resized = tf.image.resize_images(image_decoded, [image_size, image_size])
   return image_resized
-
-
 
   # -------------------------------------------
 

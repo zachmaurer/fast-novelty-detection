@@ -1,5 +1,4 @@
 # Built-in
-import pickle
 import argparse
 from os import path
 
@@ -10,6 +9,7 @@ from sklearn import metrics
 
 #Custom
 import model
+import utils
 
 def plotROC(false_positive_rates, true_positive_rates, description = None):
   lw = 2
@@ -24,11 +24,7 @@ def plotROC(false_positive_rates, true_positive_rates, description = None):
   plt.legend(loc="lower right")
   plt.show()
 
-def loadEmbeddings(data_path):
-  with open(data_path, 'rb') as infile:
-    data, labels = pickle.load(infile)
-  print("Loaded embeddings: {}".format(path.basename(data_path.rstrip('/'))))
-  return data, labels
+
 
 def evaluateClassifier(train_data, test_data, clf, predict_kwargs):
   # Unpack the data
@@ -95,9 +91,9 @@ def setupArgs():
 
 def main():
   args = setupArgs()
-  train_data, train_labels = loadEmbeddings(args.train_data)
-  test_data, test_labels = excludeTrainClasses(*loadEmbeddings(args.test_data), train_labels)
-  clf = model.DistanceAD()
+  train_data, train_labels = utils.loadEmbeddings(args.train_data)
+  test_data, test_labels = excludeTrainClasses(*utils.loadEmbeddings(args.test_data), train_labels)
+  clf = model.MahalanobisAD()
   predict_kwargs = {
     'mode' : 'average'
   }
