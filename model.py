@@ -7,6 +7,7 @@ import random
 from sklearn.cluster import KMeans
 import numpy as np
 from scipy.stats import norm
+from scipy.spatial.distance import cosine
 
 # Custom
 import utils
@@ -47,6 +48,10 @@ class SoftmaxThresholdAD(ADModel):
 
   def _hypothesis(self, X):
     pass
+
+
+
+
 
 class DistanceAD(ADModel):
   """ 
@@ -99,11 +104,35 @@ class DistanceAD(ADModel):
     if mode == 'all':
       return np.all(X > self.threshold, axis = 1)
     if mode == 'average':
-      return np.all(np.mean(X, axis = 1, keepdims = True) > self.threshold, axis = 1)
+      return np.mean(X, axis = 1, keepdims = True) > self.threshold
 
   @staticmethod
   def distance(A, b):
-    return np.sum((A - b)**2, axis = 1).flatten()**0.5
+    return np.sum((A - b)**2, axis = 1).flatten()
+
+
+class CosineAD(DistanceAD):
+  """ 
+  Concrete subclass for Euclidean Distance based AD
+  
+  For each of the known classes,
+    takes the mean of all embeddings
+    creates a single variable normal distirbution
+    of the distances from the samples to the mean
+
+  For each test class (anomaly),
+    tests whether this embedding is sufficiently
+    far from the mean of all clusters
+  """
+  def __init__(self, threshold = 0.3):
+    super().__init__()
+
+  @staticmethod
+  def distance(A, b):
+    dot_prod = A @ b
+    dot_prod /= np.linalg.norm(A, axis = 1) * np.linalg.norm(b)
+    return dot_prod
+
 
 
 class KMeansAD(ADModel):

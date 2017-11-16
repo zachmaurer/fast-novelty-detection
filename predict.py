@@ -6,8 +6,6 @@ import model
 import numpy as np
 import matplotlib.pyplot as plt
 
-data_file = '../embeddings/dukanet_sf.pb_sm-tf-test_data.pkl'
-
 def plotROC(false_positive_rates, true_positive_rates, description = None):
   lw = 2
   plt.figure()
@@ -22,7 +20,7 @@ def plotROC(false_positive_rates, true_positive_rates, description = None):
   plt.show()
 
 def loadData(data_path):
-  with open(data_file, 'rb') as infile:
+  with open(data_path, 'rb') as infile:
     data = pickle.load(infile)
   print("Loaded embeddings: {}".format(path.basename(data_path.rstrip('/'))))
   return data
@@ -58,6 +56,7 @@ def evaluateClassifier(data):
     #print("{},{}".format(TPR/100, FPR/100))
     fpr.append(FPR/100)
     tpr.append(TPR/100)
+
     if (i+1) % 100 == 0:
       print("Finished evaluating {} of {} classifiers.".format(i+1, len(params)))
   return fpr, tpr

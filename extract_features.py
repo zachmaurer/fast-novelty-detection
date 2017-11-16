@@ -14,12 +14,17 @@ import utils
 import constants
 
 # Globals
-INPUT_LAYER = 'dukanet_sf.pb/input_images:0'
+INPUT_LAYER = '{}/input_images:0'
 
 EXTRACT_CONFIG = {
-  # model_name -> (dim_size, target_layer)
-  'dukanet_sf.pb' : [('dukanet_sf.pb/MobilenetV1/Predictions/Reshape:0', 29),
-                    ('dukanet_sf.pb/MobilenetV1/Logits/Dropout_1b/Identity:0', 512)]
+  # model_name -> (dim_size, target_layer, input_dimension)
+  'dukanet_sf.pb' : [
+      ('dukanet_sf.pb/MobilenetV1/Predictions/Reshape:0', 29, 160),
+      ('dukanet_sf.pb/MobilenetV1/Logits/Dropout_1b/Identity:0', 512, 160)
+                    ],
+  'structured_test.pb' : [
+      ('structured_test.pb/MobilenetV1/Logits/SpatialSqueeze:0', 100, 224)
+                    ]
 }
 
 # Helpers
@@ -37,6 +42,7 @@ def splitDataByClass(features, labels, train_split):
     'test_examples' : features[test_mask, :],
     'test_labels' : labels[test_mask]
   }
+  print(data['train_examples'].shape)
   print("Split dataset with {:.1f}% train classes (N = {}), {:.1f}% test classes (N = {})" \
     .format(train_split*100, split_idx, (1-train_split)*100, len(classes) - split_idx))
   print("Number of Train Examples: {} \nNumber of Test Examples: {}" \
@@ -72,11 +78,13 @@ def selectTarget(model_path):
 # Main
 
 def runInference(model_path, input_paths, data_type, args = None):
-  target, dim_size = selectTarget(model_path)
+  model_name = path.basename(model_path)
+  target, dim_size, image_size = selectTarget(model_path)
+  dataset_iterator = utils.loadData(input_paths, data_type, image_size)
+
   with tf.Session() as sess:
     # Load model
     utils.loadModel(model_path, path.basename(model_path), print_layers=False)
-    dataset_iterator = utils.loadData(input_paths, data_type)
 
     # Get layer outputs
     features_node = sess.graph.get_tensor_by_name(target)
@@ -91,7 +99,8 @@ def runInference(model_path, input_paths, data_type, args = None):
       try:
         # Evaluate batch
         X, y = sess.run(dataset_iterator.get_next())
-        feed_dict = {INPUT_LAYER : X}
+        print(y)
+        feed_dict = {INPUT_LAYER.format(model_name) : X}
         target_output = sess.run(features_node, feed_dict = feed_dict)
         target_output = np.squeeze(target_output)
         
