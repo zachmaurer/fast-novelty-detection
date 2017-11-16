@@ -29,29 +29,9 @@ EXTRACT_CONFIG = {
 
 # Helpers
 
-def splitDataByClass(features, labels, train_split):
-  classes = list(set(labels))
-  random.shuffle(classes)
-  split_idx = int(len(classes)*train_split)
-  train_classes = sorted(classes[0:split_idx]) #, sorted(labels[split_idx:])
-  train_mask = np.isin(labels, train_classes)
-  test_mask = ~train_mask
-  data = {
-    'train_examples' : features[train_mask, :],
-    'train_labels' : labels[train_mask],
-    'test_examples' : features[test_mask, :],
-    'test_labels' : labels[test_mask]
-  }
-  print(data['train_examples'].shape)
-  print("Split dataset with {:.1f}% train classes (N = {}), {:.1f}% test classes (N = {})" \
-    .format(train_split*100, split_idx, (1-train_split)*100, len(classes) - split_idx))
-  print("Number of Train Examples: {} \nNumber of Test Examples: {}" \
-    .format(len(data['train_labels']), len(data['test_labels'])))
-  return data
-
-def saveFeatures(features, labels, model_path, input_path, train_split=0.7):
-  data = splitDataByClass(features, labels, train_split)
-  outfile_name = "{}_{}_data.pkl".format(path.basename(model_path), path.basename(input_path))
+def saveFeatures(features, labels, model_path, input_path, labels_dict):
+  data = ({'features' : features, 'labels' : labels}, labels_dict)
+  outfile_name = "{}_{}_data.pkl".format(path.basename(model_path.strip('/')), path.basename(input_path.strip('/')))
   outfile_name = path.join('..', 'embeddings', outfile_name)
   with open(outfile_name, 'wb') as outf:
     pickle.dump(data, outf, protocol=pickle.HIGHEST_PROTOCOL)
@@ -80,34 +60,28 @@ def selectTarget(model_path):
 def runInference(model_path, input_paths, data_type, args = None):
   model_name = path.basename(model_path)
   target, dim_size, image_size = selectTarget(model_path)
-  dataset_iterator = utils.loadData(input_paths, data_type, image_size)
+  dataset_iterator, labels_dict = utils.loadImageDataset(input_paths, data_type, image_size)
 
   with tf.Session() as sess:
     # Load model
     utils.loadModel(model_path, path.basename(model_path), print_layers=False)
-
     # Get layer outputs
     features_node = sess.graph.get_tensor_by_name(target)
-    
     # Init storage arrays
     features = np.empty((0, dim_size), np.float32)
     labels = np.empty((0,), np.int32)
     n_processed = 0
-
     # Eval loop
     while True:
       try:
         # Evaluate batch
         X, y = sess.run(dataset_iterator.get_next())
-        print(y)
         feed_dict = {INPUT_LAYER.format(model_name) : X}
         target_output = sess.run(features_node, feed_dict = feed_dict)
-        target_output = np.squeeze(target_output)
-        
+        target_output = np.squeeze(target_output)    
         # Stack outputs
         features = np.vstack((features, target_output))
-        labels = np.hstack((labels, y))
-        
+        labels = np.hstack((labels, y))     
         # Logging
         n_processed += constants.BATCH_SIZE
         if n_processed % 10*constants.BATCH_SIZE == 0: 
@@ -115,7 +89,7 @@ def runInference(model_path, input_paths, data_type, args = None):
       except tf.errors.OutOfRangeError:
         break
     print("Completed extracting features. \n")
-    return features, labels
+    return features, labels, labels_dict
 
 def setupArgs():
   def validDataType(data_type):
@@ -131,8 +105,8 @@ def setupArgs():
 
 def main():
   args = setupArgs()
-  features, labels = runInference(args.model_path, args.input_path, args.data_type, args)
-  saveFeatures(features, labels, args.model_path, args.input_path)
+  features, labels, labels_dict = runInference(args.model_path, args.input_path, args.data_type, args)
+  saveFeatures(features, labels, args.model_path, args.input_path, labels_dict)
 
 
 if __name__ == '__main__':

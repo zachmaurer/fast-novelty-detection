@@ -2,7 +2,6 @@
 import os
 from os import path
 
-
 # Libs
 import cv2
 import numpy as np
@@ -39,16 +38,20 @@ def printModelLayers():
 ### Dataset Utils ###
 #####################
 
-
-def loadData(input_paths, data_type, image_size):
-    # Load data
+def loadImageDataset(input_paths, data_type, image_size):
     if data_type == 'tfr':
       dataset = loadTfRecordDataset(input_paths, image_size, label_fn = True)      
     else:
       dataset = loadJpegDataset(input_paths, image_size)
     dataset = dataset.batch(constants.BATCH_SIZE)
     dataset_iterator = dataset.make_one_shot_iterator()
-    return dataset_iterator
+    with open(path.join(input_paths, 'labels.txt')) as labels_file:
+      labels_dict = {}
+      for l in labels_file:
+        if len(l.strip()) > 0:
+          label_idx, label_name  = l.strip().split(':')
+          labels_dict[label_name] = int(label_idx)
+    return dataset_iterator, labels_dict
 
 def loadTfRecordDataset(image_paths, image_size, label_fn = False):
   """ Loads image dataset from a list of directories containing TFRecord files. """
@@ -120,6 +123,14 @@ def openImageTf(image_path, image_size = constants.IMAGE_SIZE, **kwargs):
   image_resized = tf.image.resize_images(image_decoded, [image_size, image_size])
   return image_resized
 
+
+
+  # -------------------------------------------
+
+  ################
+  ### Unused  ###
+  ################
+
 def openImageCv(image_path, image_size = constants.IMAGE_SIZE):
   cv_img = cv2.imread(image_path)
   cv_img = cv2.resize(cv_img, (image_size, image_size))
@@ -133,3 +144,28 @@ def BGRtoRGB(img):
 def normalizeRGB(img):
   return (img.astype(np.float32)/255.0-0.5)*2.0
 
+# def splitDataByClass(features, labels, train_split):
+#   classes = list(set(labels))
+#   random.shuffle(classes)
+#   split_idx = int(len(classes)*train_split)
+#   train_classes = sorted(classes[0:split_idx]) #, sorted(labels[split_idx:])
+#   train_mask = np.isin(labels, train_classes)
+#   test_mask = ~train_mask
+#   data = {
+#     'train_examples' : features[train_mask, :],
+#     'train_labels' : labels[train_mask],
+#     'test_examples' : features[test_mask, :],
+#     'test_labels' : labels[test_mask]
+#   }
+#   print(data['train_examples'].shape)
+#   print("Split dataset with {:.1f}% train classes (N = {}), {:.1f}% test classes (N = {})" \
+#     .format(train_split*100, split_idx, (1-train_split)*100, len(classes) - split_idx))
+#   print("Number of Train Examples: {} \nNumber of Test Examples: {}" \
+#     .format(len(data['train_labels']), len(data['test_labels'])))
+#   return data
+
+# def removeTestClassProbs(X_train, y_train, X_test):
+#   classes = np.array(sorted(list(set(y_train))))
+#   X_train = X_train[:, classes]
+#   X_test = X_test[:, classes]
+#   return X_train, X_test

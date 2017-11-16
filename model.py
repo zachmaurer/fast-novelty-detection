@@ -26,31 +26,17 @@ class ADModel:
     self.ANOMALY = 1
     self.NOT_ANOMALY = 0
 
+  def config(self, hyperparam_tuple):
+    raise NotImplemented('Implement concrete subclass.')
+
   def train(self):
     raise NotImplemented('Implement concrete subclass.')
   
-  def predict(self):
+  def predict(self, **kwargs):
     raise NotImplemented('Implement concrete subclass.')
 
   def _hypothesis(self):
     raise NotImplemented('Implement concrete subclass.')
-
-class SoftmaxThresholdAD(ADModel):
-  def __init__(self, threshold = 0.3):
-    super().__init__()
-    pass
-
-  def train(self, X, y):
-    pass
-
-  def predict(self, X):
-    pass
-
-  def _hypothesis(self, X):
-    pass
-
-
-
 
 
 class DistanceAD(ADModel):
@@ -66,11 +52,17 @@ class DistanceAD(ADModel):
     tests whether this embedding is sufficiently
     far from the mean of all clusters
   """
-  def __init__(self, threshold = 0.3):
+  def __init__(self):
     super().__init__()
     self.distributions = None # class -> (mu, std)
     self.means = None # class -> np.array mean embedding
-    self.threshold = threshold # standard deviations away from mean
+
+    # Model Hyperparams
+    self.params = np.arange(0.01, 3, 0.01)
+    self.threshold = None
+
+  def config(self, hyperparam_tuple):
+    self.threshold = hyperparam_tuple
 
   def train(self, X, y):
     self.distributions = dict()
@@ -83,11 +75,13 @@ class DistanceAD(ADModel):
       X_mean = np.mean(X_class, axis = 0)
       distances = self.distance(X_class, X_mean)
       distribution = norm.fit(distances)
-      #print(distribution)
       self.distributions[c] = distribution
       self.means[c] = X_mean
 
-  def predict(self, X, mode = 'all'):
+  def predict(self, X, **kwargs):
+    mode = kwargs.pop('mode')
+    if mode is None:
+      raise ValueError('DistanceAD requires a prediction `mode`.')
     if self.distributions is None:
       raise ValueError('Must train distributions first')
     sigma_distance = np.empty((X.shape[0], 0), np.float32)
@@ -124,35 +118,15 @@ class CosineAD(DistanceAD):
     tests whether this embedding is sufficiently
     far from the mean of all clusters
   """
-  def __init__(self, threshold = 0.3):
+  def __init__(self):
     super().__init__()
 
   @staticmethod
   def distance(A, b):
-    dot_prod = A @ b
-    dot_prod /= np.linalg.norm(A, axis = 1) * np.linalg.norm(b)
-    return dot_prod
+    cos_sim = A @ b
+    cos_sim /= np.linalg.norm(A, axis = 1) * np.linalg.norm(b)
+    cos_dist = 1.0 - cos_sim
+    return cos_dist
 
 
 
-class KMeansAD(ADModel):
-  """ Concrete subclass for KMeans based AD """
-  def __init__(self):
-    super().__init__()
-    self.clf = None
-    self.centroids = None
-
-  def train(self, X, y):
-    k = len(set(y))
-    self.clf = KMeans(n_clusters=k, random_state=self.seed, n_jobs=self.n_jobs).fit(X)
-    self.centroids = self.clf.cluster_centers_
-
-
-
-# Helper functions
-
-def removeTestClassProbs(X_train, y_train, X_test):
-  classes = np.array(sorted(list(set(y_train))))
-  X_train = X_train[:, classes]
-  X_test = X_test[:, classes]
-  return X_train, X_test
