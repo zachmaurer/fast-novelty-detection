@@ -13,6 +13,7 @@ import utils
 
 random.seed(7123)
 
+
 def evaluateEmbeddingsKMeans(feature_data):
   X, y = feature_data['features'], feature_data['labels']
   num_classes = len(set(list(y.flatten())))
@@ -40,21 +41,18 @@ def evaluateEmbeddingsAffinityProp(feature_data):
   # plot the histogram for the nearest neighbor distances?
 
 def evaluateEmbeddingsKNN(feature_data, k = 7):
-  X, y = feature_data['features'], feature_data['labels'].flatten()
-  split_idx = X.shape[0] // 2
-  X_train = X[0:split_idx, :]
-  X_test, y_test = X[split_idx:, :], y[split_idx:]
-  num_classes = len(set(list(y)))
-  nbrs = NearestNeighbors(n_neighbors = k, algorithm='ball_tree').fit(X_train)
-  distances, indices = nbrs.kneighbors(X_test)
-  classes = y_test[indices]
-  classes = np.hstack((classes, (num_classes-1)*np.ones((classes.shape[0],1))))
-  classes = classes.astype(np.int32)
-  freqs = np.apply_along_axis(np.bincount, axis = 1, arr = classes)
-  freqs[:, -1] -= 1
-  predicted_classes = np.argmax(freqs, axis = 1)
-  accuracy = np.sum(predicted_classes == y_test) / predicted_classes.shape[0]
-  print("KNN Derived Accuracy (k = {}): {:.4f}".format(k, accuracy))
+  X, y = feature_data['features'], feature_data['labels'].reshape(-1, 1)
+  nbrs = NearestNeighbors(n_neighbors = k, algorithm='kd_tree').fit(X)
+  distances, indices = nbrs.kneighbors(X)
+  classes = (y.flatten())[indices]
+  classes = classes[:, 1:]
+  preds = (classes.squeeze() == y)
+  recall_k = [1,3,5,7]
+  recall = []
+  for k in recall_k:
+    r = np.mean(np.any(preds[:, :k], axis = 1).flatten())
+    recall.append(r)
+    print("Recall@{} : {:.2f}".format(k, r*100))
 
 def setupArgs():
   parser = argparse.ArgumentParser(description='Calculate cluster accuracy of embeddings w/ oracle known number of classes.')
@@ -66,8 +64,7 @@ def setupArgs():
 def main():
   args = setupArgs()
   feature_data, labels_dict = utils.loadEmbeddings(args.embeddings)
-  for k in range(4, 8):
-    evaluateEmbeddingsKNN(feature_data, k = k)
+  evaluateEmbeddingsKNN(feature_data)
   evaluateEmbeddingsKMeans(feature_data)
   evaluateEmbeddingsAffinityProp(feature_data)
   

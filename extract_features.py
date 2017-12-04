@@ -77,7 +77,10 @@ def runInference(model_path, input_paths, data_type, args = None):
     while True:
       try:
         # Evaluate batch
-        X, y = sess.run(dataset_iterator.get_next())
+        try:
+          X, y = sess.run(dataset_iterator.get_next())
+        except tf.errors.InternalError:
+          continue
         feed_dict = {INPUT_LAYER.format(model_name) : X}
         target_output = sess.run(features_node, feed_dict = feed_dict)
         target_output = np.squeeze(target_output)    

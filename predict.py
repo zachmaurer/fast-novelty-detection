@@ -26,7 +26,7 @@ def plotROC(false_positive_rates, true_positive_rates, description = None):
 
 
 
-def evaluateClassifier(train_data, test_data, clf, predict_kwargs):
+def evaluateClassifier(train_data, test_data, clf, predict_kwargs, split_data = False):
   # Unpack the data
   X_train, y_train = train_data['features'], train_data['labels']
   X_test, y_test = test_data['features'], test_data['labels']
@@ -58,8 +58,10 @@ def evaluateClassifier(train_data, test_data, clf, predict_kwargs):
     true_positive_rate = true_positives / test_preds.shape[0]
     true_positive_history.append(true_positive_rate)
 
-    if (i+1) % 100 == 0:
+    if clf.verbose or (i+1) % (len(clf.params) / 5) == 0:
       print("Finished evaluating {} of {} classifiers.".format(i+1, len(clf.params)))
+      print("  True positive rate: {}".format(true_positive_rate))
+      print("  False positive rate: {}".format(false_positive_rate))
   auc_score = metrics.auc(false_positive_history, true_positive_history)
   print("AUC Score: {:.4f}".format(auc_score))
   return false_positive_history, true_positive_history
@@ -93,10 +95,12 @@ def main():
   args = setupArgs()
   train_data, train_labels = utils.loadEmbeddings(args.train_data)
   test_data, test_labels = excludeTrainClasses(*utils.loadEmbeddings(args.test_data), train_labels)
-  clf = model.MahalanobisAD()
+  clf = model.AffinityAD()
+  clf.verbose = True
   predict_kwargs = {
     'mode' : 'average'
   }
+  print("Training {} classifier.".format(clf.__class__))
   false_pos, true_pos = evaluateClassifier(train_data, test_data, clf, predict_kwargs)
   plotROC(false_pos, true_pos, description = args.title)
 

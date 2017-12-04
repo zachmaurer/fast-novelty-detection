@@ -114,7 +114,7 @@ def openTfRecordImage(example_proto, image_size = constants.IMAGE_SIZE, **kwargs
                 'image/class/label': tf.FixedLenFeature([], tf.int64, default_value=tf.zeros([], dtype=tf.int64)),
                 }
     parsed_features = tf.parse_single_example(example_proto, features)
-    parsed_features['image/encoded'] = tf.image.decode_jpeg(parsed_features['image/encoded'])
+    parsed_features['image/encoded'] = tf.image.decode_jpeg(parsed_features['image/encoded'], channels = 3)
     parsed_features['image/encoded'] = tf.image.resize_images(parsed_features['image/encoded'], \
                                                                 [image_size, image_size])
     return parsed_features['image/encoded'], parsed_features['image/class/label']
@@ -123,7 +123,7 @@ def openTfRecordImage(example_proto, image_size = constants.IMAGE_SIZE, **kwargs
             'image/encoded': tf.FixedLenFeature((), tf.string, default_value=""),
             }
     parsed_features = tf.parse_single_example(example_proto, features)
-    parsed_features['image/encoded'] = tf.image.decode_jpeg(parsed_features['image/encoded'])
+    parsed_features['image/encoded'] = tf.image.decode_jpeg(parsed_features['image/encoded'], channels = 3)
     parsed_features['image/encoded'] = tf.image.resize_images(parsed_features['image/encoded'], \
                                                                 [image_size, image_size])
     return parsed_features['image/encoded']
