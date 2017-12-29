@@ -6,10 +6,18 @@ from matplotlib.ticker import NullFormatter
 import matplotlib
 
 #import seaborn as sns
-#import numpy as np
+import numpy as np
 
-def makeProjection(feature_data):
-  X, y = feature_data['features'], feature_data['labels'].flatten()
+def makeProjection(train_feature_data, test_feature_data):
+  Xtrain, ytrain = train_feature_data['features'], train_feature_data['labels'].flatten()
+  Xtest, ytest = test_feature_data['features'], test_feature_data['labels'].flatten()
+
+  ytrain[:] = 0
+  ytest[:] = 1
+
+  X = np.vstack((Xtrain, Xtest))
+  y = np.hstack((ytrain, ytest))
+
   (fig, subplots) = plt.subplots(2, 2, figsize=(15, 15))
   plt.title('TSNE')
   perplexities = [5, 30, 50, 100]
@@ -20,9 +28,8 @@ def makeProjection(feature_data):
     print("Done fitting TSNE.")
     row, col = plots[i]
     ax = subplots[row][col]
-    colors = ['blue', 'orange']
-    cmap = matplotlib.colors.ListedColormap(colors)
-    ax.scatter(projection[:, 0], projection[:, 1], c=y, cmap=cmap)
+    cmap=matplotlib.colors.ListedColormap(['blue', 'orange'])
+    ax.scatter(projection[:, 0], projection[:, 1], c=y, cmap=cmap, alpha = 0.1, s = 5)
     ax.set_title("Perplexity=%d" % p)
     ax.xaxis.set_major_formatter(NullFormatter())
     ax.yaxis.set_major_formatter(NullFormatter())
@@ -31,15 +38,17 @@ def makeProjection(feature_data):
 
 def setupArgs():
   parser = argparse.ArgumentParser(description='Calculate cluster accuracy of embeddings w/ oracle known number of classes.')
-  parser.add_argument('embeddings', help='path to embeddings file')
+  parser.add_argument('train', help='path to embeddings file')
+  parser.add_argument('test', help='path to embeddings file')
   args = parser.parse_args()
   print("")
   return args
 
 def main():
   args = setupArgs()
-  feature_data, labels_dict = utils.loadEmbeddings(args.embeddings)
-  makeProjection(feature_data)
+  train_feature_data, train_labels_dict = utils.loadEmbeddings(args.train)
+  test_feature_data, test_labels_dict = utils.loadEmbeddings(args.test)
+  makeProjection(train_feature_data, test_feature_data)
 
 
 

@@ -6,6 +6,7 @@ from os import path
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn import metrics
+from sklearn.model_selection import train_test_split
 
 #Custom
 import model
@@ -26,14 +27,16 @@ def plotROC(false_positive_rates, true_positive_rates, description = None):
 
 
 
-def evaluateClassifier(train_data, test_data, clf, predict_kwargs, split_data = False):
+def evaluateClassifier(train_data, val_data, test_data, clf, predict_kwargs, split_data = False):
   # Unpack the data
   X_train, y_train = train_data['features'], train_data['labels']
+  X_val, y_val = val_data['features'], val_data['labels']
   X_test, y_test = test_data['features'], test_data['labels']
 
   # Print Stats
   print("Embedding dimension: {}".format(X_train.shape[1]))
   print("Total train examples: {}  ({} classes)".format(X_train.shape[0], len(set(list(y_train)))))
+  print("Total val examples: {}  ({} classes)".format(X_val.shape[0], len(set(list(y_val)))))
   print("Total test examples: {}  ({} classes)".format(X_test.shape[0], len(set(list(y_test)))))
   print("")
 
@@ -45,7 +48,7 @@ def evaluateClassifier(train_data, test_data, clf, predict_kwargs, split_data = 
     # Classify
     clf.config(config)
     clf.train(X_train, y_train)
-    train_preds = clf.predict(X_train, **predict_kwargs)
+    train_preds = clf.predict(X_val, **predict_kwargs)
     test_preds = clf.predict(X_test, **predict_kwargs)
 
     # train_preds should all be clf.NOT_ANOMALY == 0; false_positives
@@ -85,6 +88,7 @@ def excludeTrainClasses(test_data, test_labels, train_labels):
 def setupArgs():
   parser = argparse.ArgumentParser(description='Run classification.')
   parser.add_argument('train_data', help='path to embeddings file')
+  parser.add_argument('val_data', help='path to embeddings file')
   parser.add_argument('test_data', help='path to embeddings file')
   parser.add_argument('--title', help='path to embeddings file', default = None)
   args = parser.parse_args()
@@ -94,14 +98,16 @@ def setupArgs():
 def main():
   args = setupArgs()
   train_data, train_labels = utils.loadEmbeddings(args.train_data)
+  val_data, val_labels = utils.loadEmbeddings(args.val_data)
   test_data, test_labels = excludeTrainClasses(*utils.loadEmbeddings(args.test_data), train_labels)
-  clf = model.AffinityAD()
+  test_data, test_labels = utils.loadEmbeddings(args.test_data)
+  clf = model.NearestCentroidSVM()
   clf.verbose = True
   predict_kwargs = {
     'mode' : 'average'
   }
   print("Training {} classifier.".format(clf.__class__))
-  false_pos, true_pos = evaluateClassifier(train_data, test_data, clf, predict_kwargs)
+  false_pos, true_pos = evaluateClassifier(train_data, val_data, test_data, clf, predict_kwargs)
   plotROC(false_pos, true_pos, description = args.title)
 
 if __name__ == '__main__':

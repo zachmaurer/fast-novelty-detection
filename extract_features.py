@@ -27,6 +27,9 @@ EXTRACT_CONFIG = {
                     ],
   'sf_structured_progress.pb' : [
       ('sf_structured_progress.pb/MobilenetV1/Logits/SpatialSqueeze:0', 256, 224)
+                    ],
+  'stanford_products_val_removed.pb' : [
+      ('stanford_products_val_removed.pb/MobilenetV1/Logits/SpatialSqueeze:0', 256, 224)
                     ]
 }
 
@@ -79,6 +82,7 @@ def runInference(model_path, input_paths, data_type, args = None):
         # Evaluate batch
         try:
           X, y = sess.run(dataset_iterator.get_next())
+          X /= 255.0
         except tf.errors.InternalError:
           continue
         feed_dict = {INPUT_LAYER.format(model_name) : X}

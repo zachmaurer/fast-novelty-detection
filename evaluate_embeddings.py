@@ -47,7 +47,7 @@ def evaluateEmbeddingsKNN(feature_data, k = 7):
   classes = (y.flatten())[indices]
   classes = classes[:, 1:]
   preds = (classes.squeeze() == y)
-  recall_k = [1,3,5,7]
+  recall_k = [1,5,7]
   recall = []
   for k in recall_k:
     r = np.mean(np.any(preds[:, :k], axis = 1).flatten())

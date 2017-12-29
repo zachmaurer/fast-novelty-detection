@@ -6,7 +6,7 @@ import time
 
 
 # Libs
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, DBSCAN
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.ensemble import IsolationForest
@@ -81,6 +81,7 @@ class DistanceAD(ADModel):
     self.threshold = None
 
   def config(self, hyperparam_tuple):
+    print("threshold", hyperparam_tuple)
     self.threshold = hyperparam_tuple
 
   def train(self, X, y):
@@ -146,7 +147,7 @@ class OneClassSvmAD(ADModel):
     self.scaler = None
 
     # Model Hyperparams
-    self.params = np.arange(0.1, 1, 0.1)
+    self.params = np.arange(0.13, 1, 0.05)
     self.nu = None
 
   def config(self, hyperparam_tuple):
@@ -171,28 +172,77 @@ class AffinityAD(ADModel):
     super().__init__()
     self.cluster_centers = None
     self.scaler = StandardScaler()
-
+    self.neighbors = None
+    self.n_neighbors = 30
+    self.X = None
     # Model Hyperparams
-    self.params = np.arange(0.01, 0.26, 0.05)
+    self.params = np.arange(0.05, 0.5, 0.05)
     self.nu = None
 
   def config(self, hyperparam_tuple):
     self.nu = hyperparam_tuple
 
   def train(self, X, y):
-    afp = AffinityPropagation().fit(X)
-    self.cluster_centers = afp.cluster_centers_ # clusters x features
+    if self.X is not X:
+      self.X = X
+      afp = AffinityPropagation(damping = 0.85).fit(X)
+      self.cluster_centers = afp.cluster_centers_ # clusters x features
+      print("Found {} cluster centers".format(self.cluster_centers.shape[0]))
+    # self.neighbors = NearestNeighbors(n_neighbors = self.n_neighbors).fit(self.cluster_centers)
+    # dists, _ = self.neighbors.kneighbors(X)
+      dists = euclidean_distances(X, self.cluster_centers)
+    # dists = np.sort(dists, axis = 1)[:, 0:self.n_neighbors]
+      self.X_scaled = self.scaler.fit_transform(dists)
+    self.clf = OneClassSVM(nu=self.nu, random_state = self.seed, verbose = 0)
+    self.clf.fit(self.X_scaled)
+
+  def predict(self, X, **kwargs):
+    # dists, _ = self.neighbors.kneighbors(X)
     dists = euclidean_distances(X, self.cluster_centers)
+    # dists = np.sort(dists, axis = 1)[:, 0:self.n_neighbors]
+    X_scaled = self.scaler.transform(dists)
+    preds = self.clf.predict(X_scaled)
+    preds = (-preds + 1) // 2
+    return preds
+
+class NearestCentroidSVM(ADModel):
+  def __init__(self):
+    super().__init__()
+    self.cluster_centers = None
+    self.scaler = StandardScaler()
+    self.neighbors = None
+    self.n_neighbors = 30
+
+    # Model Hyperparams
+    self.params = np.arange(0.07, 0.2, 0.0025)
+    self.nu = None
+
+  def config(self, hyperparam_tuple):
+    print("nu {}".format(hyperparam_tuple))
+    self.nu = hyperparam_tuple
+
+  def train(self, X, y):
+    #afp = AffinityPropagation(damping = 0.85).fit(X)
+    afp = KMeans(n_clusters = 500).fit(X)
+    self.cluster_centers = afp.cluster_centers_ # clusters x features
+    print("Found {} cluster centers".format(self.cluster_centers.shape[0]))
+    self.neighbors = NearestNeighbors(n_neighbors = self.n_neighbors).fit(self.cluster_centers)
+    dists, _ = self.neighbors.kneighbors(X)
+    dists = euclidean_distances(X, self.cluster_centers)
+    dists = np.sort(dists, axis = 1)[:, 0:self.n_neighbors]
     X_scaled = self.scaler.fit_transform(dists)
     self.clf = OneClassSVM(nu=self.nu, random_state = self.seed, verbose = 0)
     self.clf.fit(X_scaled)
 
   def predict(self, X, **kwargs):
+    dists, _ = self.neighbors.kneighbors(X)
     dists = euclidean_distances(X, self.cluster_centers)
+    dists = np.sort(dists, axis = 1)[:, 0:self.n_neighbors]
     X_scaled = self.scaler.transform(dists)
     preds = self.clf.predict(X_scaled)
     preds = (-preds + 1) // 2
     return preds
+
 
 class LoOpAD(ADModel):
   # https://github.com/vc1492a/PyNomaly
@@ -208,6 +258,7 @@ class LoOpAD(ADModel):
     self.threshold = None
 
   def config(self, hyperparam_tuple):
+    print("threshold", hyperparam_tuple)
     self.threshold = hyperparam_tuple
 
   def train(self, X, **kwargs):
@@ -238,7 +289,6 @@ class LoOpAD(ADModel):
   def _queryNearest(self, X, remove_first = False):
     start = startTimer()
     distances, indices = self.neighbors.kneighbors(X)
-    print("Done querying.")
     if X is self.X or remove_first:
       distances = distances[:, 1:] # exclde first NN, because its itself
       indices = indices[:, 1:]
@@ -246,6 +296,7 @@ class LoOpAD(ADModel):
       distances = distances[:, :-1] # keep top-(k-1)
       indices = indices[:, :-1]
     endTimer(start, message = 'queryNearest ' + str(X.shape))
+    #print(distances[:, 0].flatten())
     return distances, indices
 
 
@@ -269,6 +320,40 @@ def testLoopAD():
 if __name__ == '__main__':
   testLoopAD()
 
+class NeighborsDistanceAD(LoOpAD):
+  def __init__(self, k = 20):
+    super().__init__()
+    self.X = None
+    self.neighbors = None
+    self.lmbda = 3.0
+    self.k = k
+    self.scaler = StandardScaler()
+    self.clf = None
+
+    # Model Hyperparams
+    self.params = np.arange(0.15, 1, 0.1)
+    self.nu = None
+
+  def config(self, hyperparam_tuple):
+    print("nu", hyperparam_tuple)
+    self.nu = hyperparam_tuple
+
+  def train(self, X, y, **kwargs):
+    if X is not self.X: 
+      self.X = X
+      self.neighbors = NearestNeighbors(n_neighbors = self.k).fit(X)
+    else:
+      print("Skipping kNN fitting, because using same data X.")
+    distances, _ = self._queryNearest(X)
+    X_scaled = self.scaler.fit_transform(distances)
+    self.clf = OneClassSVM(nu=self.nu, random_state = self.seed, verbose = 0)
+    self.clf.fit(X_scaled)
+   
+  def predict(self, X, **kwargs):
+    distances, _ = self._queryNearest(X)
+    preds = self.clf.predict(self.scaler.transform(distances))
+    preds = (-preds + 1) // 2
+    return preds
 
 ####################################
 ########### Unused #################
