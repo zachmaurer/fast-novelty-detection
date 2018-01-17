@@ -18,9 +18,9 @@ INPUT_LAYER = '{}/input_images:0'
 
 EXTRACT_CONFIG = {
   # model_name -> (dim_size, target_layer, input_dimension)
-  'dukanet_sf.pb' : [
-      ('dukanet_sf.pb/MobilenetV1/Predictions/Reshape:0', 29, 160),
-      ('dukanet_sf.pb/MobilenetV1/Logits/Dropout_1b/Identity:0', 512, 160)
+  'netnet_sf.pb' : [
+      ('netnet_sf.pb/MobilenetV1/Predictions/Reshape:0', 29, 160),
+      ('netnet_sf.pb/MobilenetV1/Logits/Dropout_1b/Identity:0', 512, 160)
                     ],
   'structured_test.pb' : [
       ('structured_test.pb/MobilenetV1/Logits/SpatialSqueeze:0', 100, 224)
